@@ -10,9 +10,17 @@ Trial paper: https://doi.org/10.1001/jamanetworkopen.2020.30415
 
 Metagenomic data: https://doi.org/10.1186/s40168-021-01060-7
 
+## The FOCUS Trial
+
+The FOCUS Trial was a double-blinded randomised placebo-controlled trial that assessed the efficacy of FMT to treat adult (aged 18-75 years) ulcerative colitis (UC). FMT from 4-7 donors was administered via an initial colonoscopic infusion, followed by enemas at a frequency of 5 days per week for 8 weeks. Stool samples were obtained from individual donors and donor batches, as well as recipients every 4 weeks during the blinded treatment phase. A subset of 157 metagenomic sequencing files were selected for analysis.
+
+Trial paper: https://doi.org/10.1016/S0140-6736(17)30182-4
+
+Metagenomic data: https://doi.org/10.1053/j.gastro.2018.12.001
+
 ## HGT network analysis
 
-This repository contains the following R scripts used to analyse metagenomic data from the Gut Bugs Trial for HGT network analysis.
+This repository contains the following R scripts used to analyse metagenomic data from the Gut Bugs Trial and FOCUS Trial for HGT network analysis.
 
 - 0_format_metaphlan_output.R : format [MetaPhlAn](https://github.com/biobakery/MetaPhlAn) microbiome profile output
 - 0_format_waafle_output.R : format [WAAFLE](https://github.com/biobakery/waafle) HGT output

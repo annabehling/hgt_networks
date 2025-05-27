@@ -140,8 +140,14 @@ process_metaphlan4_gtdb_data <- function(metaphlan4_table, output_file){
 
 # process metaphlan4 merged profiles data ---------------------------------
 
+# FOCUS SGB table
+process_metaphlan4_sgb_data(metaphlan4_table = "metaphlan_merged_profiles_sgb_uc.tsv", output_file = "metaphlan4_sgb_uc.Rdata")
+
 # Gut Bugs SGB table
 process_metaphlan4_sgb_data(metaphlan4_table = "metaphlan_merged_profiles_sgb_gb.tsv", output_file = "metaphlan4_sgb_gb.Rdata")
+
+# FOCUS GTDB table
+process_metaphlan4_gtdb_data(metaphlan4_table = "metaphlan_merged_profiles_gtdb_uc.tsv", output_file = "metaphlan4_gtdb_uc.Rdata")
 
 # Gut Bugs GTDB table
 process_metaphlan4_gtdb_data(metaphlan4_table = "metaphlan_merged_profiles_gtdb_gb.tsv", output_file = "metaphlan4_gtdb_gb.Rdata")

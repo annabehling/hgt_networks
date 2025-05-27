@@ -70,23 +70,42 @@ role_restoration_alluvial <- function(role_restoration_data, pre_intervention_na
 # investigate restoration of network roles after FMT ----------------------
 
 # investigate the restoration of 'healthy' cohort species network roles, post-intervention
+fmt_role_restoration_uc <- spp_role_restoration(joined_spp_roles, donor_cohort = "FOCUS Donor", 
+                                                pre_intervention_cohort = "FOCUS Pre-FMT", post_intervention_cohort = "FOCUS Post-FMT")
+placebo_role_restoration_uc <- spp_role_restoration(joined_spp_roles, donor_cohort = "FOCUS Donor", 
+                                                    pre_intervention_cohort = "FOCUS Pre-placebo", post_intervention_cohort = "FOCUS Post-placebo")
+
 fmt_role_restoration_gb <- spp_role_restoration(joined_spp_roles, donor_cohort = "Gut Bugs Donor", 
                                                 pre_intervention_cohort = "Gut Bugs Pre-FMT", post_intervention_cohort = "Gut Bugs Post-FMT")
 placebo_role_restoration_gb <- spp_role_restoration(joined_spp_roles, donor_cohort = "Gut Bugs Donor", 
                                                     pre_intervention_cohort = "Gut Bugs Pre-placebo", post_intervention_cohort = "Gut Bugs Post-placebo")
 
 # plot the restoration of 'healthy' cohort species network roles, post-intervention 
+fmt_role_restoration_uc_plot <- role_restoration_alluvial(fmt_role_restoration_uc, pre_intervention_name = "Pre-FMT", post_intervention_name = "Post-FMT")
+placebo_role_restoration_uc_plot <- role_restoration_alluvial(placebo_role_restoration_uc, 
+                                                              pre_intervention_name = "Pre-placebo", post_intervention_name = "Post-placebo")
+
 fmt_role_restoration_gb_plot <- role_restoration_alluvial(fmt_role_restoration_gb, pre_intervention_name = "Pre-FMT", post_intervention_name = "Post-FMT")
- 
 placebo_role_restoration_gb_plot <- role_restoration_alluvial(placebo_role_restoration_gb, 
                                                               pre_intervention_name = "Pre-placebo", post_intervention_name = "Post-placebo")
 
 # for each trial, statistically compare the restoration of species network role to 'healthy' cohort role, in FMT vs placebo recipients
 # calculate proportions
+mean(fmt_role_restoration_uc$Role_restored != "No") # 0.118
+mean(placebo_role_restoration_uc$Role_restored != "No") # 0.139
+
 mean(fmt_role_restoration_gb$Role_restored != "No") # 0.206
 mean(placebo_role_restoration_gb$Role_restored != "No") # 0.174
 
 # compare proportions with Fisher's exact test due to small sample sizes
+n_restored_fmt_uc <- sum(fmt_role_restoration_uc$Role_restored != "No")
+n_total_fmt_uc <- nrow(fmt_role_restoration_uc)
+n_restored_placebo_uc <- sum(placebo_role_restoration_uc$Role_restored != "No")
+n_total_placebo_uc <- nrow(placebo_role_restoration_uc)
+
+fisher.test(matrix(c(n_restored_fmt_uc, n_total_fmt_uc - n_restored_fmt_uc,
+                     n_restored_placebo_uc, n_total_placebo_uc - n_restored_placebo_uc), nrow = 2)) # p = 1
+
 n_restored_fmt_gb <- sum(fmt_role_restoration_gb$Role_restored != "No")
 n_total_fmt_gb <- nrow(fmt_role_restoration_gb)
 n_restored_placebo_gb <- sum(placebo_role_restoration_gb$Role_restored != "No")

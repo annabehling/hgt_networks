@@ -30,7 +30,8 @@ get_hgt_events <- function(results_dir, pattern){
 
 # process WAAFLE data -----------------------------------------------------
 
-joined_hgt_df_gb <- get_hgt_events("waafle/", ".lgt.tsv") %>%
+joined_hgt_df_uc <- get_hgt_events("Z:/uc_study/waafle_data/", ".lgt.tsv")
+joined_hgt_df_gb <- get_hgt_events("Z:/gutbugs_2ndrun/outputs/waafle/", ".lgt.tsv") %>%
   mutate(Sample_ID = str_replace(Sample_ID, "wk6", "6wk"), # format of sample ID from contigs is reversed from Gut Bugs metadata
          Sample_ID = str_replace(Sample_ID, "wk12", "12wk"),
          Sample_ID = str_replace(Sample_ID, "wk26", "26wk"))
@@ -38,4 +39,5 @@ joined_hgt_df_gb <- get_hgt_events("waafle/", ".lgt.tsv") %>%
 
 # save data files ---------------------------------------------------------
 
+#save(joined_hgt_df_uc, file = "joined_hgt_df_uc.RData")
 #save(joined_hgt_df_gb, file = "joined_hgt_df_gb.RData")

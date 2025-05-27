@@ -54,51 +54,72 @@ load_formatted_m4_spp <- function(formatted_metaphlan){
 ## load data
 
 # metadata
+load("uc_metadata_subset.RData")
 load("gb_metadata.RData")
 
 # waafle
+load("joined_hgt_df_uc.RData")
 load("joined_hgt_df_gb.RData")
 
 ## running
 
 # format metadata, note: formatting unique to each metadata set
+formatted_metadata_uc <- uc_metadata %>%
+  filter(Group != "Donor_batch") %>% # remove donor batch samples
+  mutate(Group = ifelse(Group == "Donor_individual", "Donor", Group)) # rename donor individual as just donor
+
 formatted_metadata_gb <- gb_metadata_all %>%
   mutate(Sample_ID = str_remove(Sample_ID, "_")) %>% # remove underscores from sample IDs
   filter(Timepoint != "Week 12" & Timepoint != "Week 26") # remove additional timepoints
 
 # remove recipients with only one timepoint
+tmp_metadata_uc <- subset_recipients(formatted_metadata_uc, "wk8")
 tmp_metadata_gb <- subset_recipients(formatted_metadata_gb, "wk6")
 
 # create generalised timepoints for plotting
+metadata_uc <- generalised_timepoint(tmp_metadata_uc, "wk8") # 131 samples total
 metadata_gb <- generalised_timepoint(tmp_metadata_gb, "wk6") # 224 samples total
 
 # subset samples and quantify
 # donor
+donor_samples_uc <- subset_samples(metadata_uc, "Donor") # 27 samples
 donor_samples_gb <- subset_samples(metadata_gb, "Donor") # 58 samples
 # pre-FMT
+pre_fmt_samples_uc <- subset_samples(metadata_uc, "Pre-FMT") # 32 samples
 pre_fmt_samples_gb <- subset_samples(metadata_gb, "Pre-FMT") # 39 samples
 # post-FMT
+post_fmt_samples_uc <- subset_samples(metadata_uc, "Post-FMT") # 32 samples
 post_fmt_samples_gb <- subset_samples(metadata_gb, "Post-FMT") # 39 samples
 # pre-placebo
+pre_placebo_samples_uc <- subset_samples(metadata_uc, "Pre-placebo") # 20 samples
 pre_placebo_samples_gb <- subset_samples(metadata_gb, "Pre-placebo") # 44 samples
 # post-placebo
+post_placebo_samples_uc <- subset_samples(metadata_uc, "Post-placebo") # 20 samples
 post_placebo_samples_gb <- subset_samples(metadata_gb, "Post-placebo") # 44 samples
 
 # check formatting of sample IDs is the same as in waafle
+length(which(metadata_uc$Sample_ID %in% joined_hgt_df_uc$Sample_ID)) # 128 = 3 samples missing (checked these samples did not have any HGT events)
 length(which(metadata_gb$Sample_ID %in% joined_hgt_df_gb$Sample_ID)) # 224 = all samples accounted for
 
 # load formatted metaphlan4 GTDB or SGB species output
 # note: load formatted metaphlan output into function as they all have objects with the same names
+m4_spp_sgb_uc <- load_formatted_m4_spp("metaphlan4_sgb_uc.Rdata") # m4 sgb
 m4_spp_sgb_gb <- load_formatted_m4_spp("metaphlan4_sgb_gb.Rdata")
+m4_spp_gtdb_uc <- load_formatted_m4_spp("metaphlan4_gtdb_uc.Rdata") # m4 gtdb
 m4_spp_gtdb_gb <- load_formatted_m4_spp("metaphlan4_gtdb_gb.Rdata")
 
 # check formatting of sample IDs is the same as in metaphlan species
 # note: underscores have been removed from metaphlan sample IDs, must do this again when using the data
+length(which(metadata_uc$Sample_ID %in% m4_spp_sgb_uc$Sample_ID)) # 131 = all samples accounted for
+length(which(metadata_uc$Sample_ID %in% m4_spp_gtdb_uc$Sample_ID)) # 131 = all samples accounted for
+
 length(which(metadata_gb$Sample_ID %in% m4_spp_sgb_gb$Sample_ID)) # 224 = all samples accounted for
 length(which(metadata_gb$Sample_ID %in% m4_spp_gtdb_gb$Sample_ID)) # 224 = all samples accounted for
 
 
 # save data files ---------------------------------------------------------
 
+#save(metadata_uc, file = "formatted_metadata_uc.RData")
 #save(metadata_gb, file = "formatted_metadata_gb.RData")
-#save(donor_samples_gb, pre_fmt_samples_gb, post_fmt_samples_gb, pre_placebo_samples_gb, post_placebo_samples_gb, file = "sample_subsets.RData")
+#save(donor_samples_uc, pre_fmt_samples_uc, post_fmt_samples_uc, pre_placebo_samples_uc, post_placebo_samples_uc, 
+#     donor_samples_gb, pre_fmt_samples_gb, post_fmt_samples_gb, pre_placebo_samples_gb, post_placebo_samples_gb, file = "sample_subsets.RData")

@@ -16,6 +16,7 @@ library(ComplexUpset)
 ## load data
 
 # HGT events between species for sample subset (individual donors, recipients with pre- and post-intervention), contains column with Directional == "Yes" / "No"
+load("spp_dir_hgts_uc.RData")
 load("spp_dir_hgts_gb.RData")
 
 # formatted metadata, note: sample IDs must match extracted WAAFLE sample IDs
@@ -255,7 +256,7 @@ conserved_network_roles <- function(upset_data){
 # investigate species behaviour in a super HGT network --------------------
 
 # join data from both trials
-super_dir_spp_hgts <- spp_dir_hgts_gb %>%
+super_dir_spp_hgts <- bind_rows(spp_dir_hgts_uc, spp_dir_hgts_gb) %>%
   filter(Directional == "Yes") %>% # must filter for directional events
   select(CLADE_B, CLADE_A) %>% # only need donor and receiver species of each HGT interaction
   rename(Donor = CLADE_B, # renaming as events are directional
@@ -273,8 +274,8 @@ set.seed(1234) # set seed for this section, also set in functions to get network
 super_directed_network <- graph_from_data_frame(d = super_dir_spp_hgts[, c(1, 2)], directed = TRUE) # col1 = donor species, col2 = recipient species
 E(super_directed_network)$weight <- count_multiple(super_directed_network) # weight network by number of HGT interactions
 
-super_network_n_nodes <- gorder(super_directed_network) # number of nodes
-super_network_n_edges <- gsize(super_directed_network) # number of edges
+super_network_n_nodes <- gorder(super_directed_network) # number of nodes = 298
+super_network_n_edges <- gsize(super_directed_network) # number of edges = 2890
 
 # get the network node layout for plotting
 super_node_coords <- network_node_coordinates(super_directed_network, all_hgt_taxa_distinct)
@@ -309,10 +310,10 @@ randomised_dr_ratios$dr_ratio_log <- log10(randomised_dr_ratios$dr_ratio) # log 
 # determine thresholds for source/sink definitions based on 2SD either side of mean log10 donor-receiver ratio (normal distribution)
 log_mean <- mean(randomised_dr_ratios$dr_ratio_log)
 log_sd <- sd(randomised_dr_ratios$dr_ratio_log)
-log_lower_threshold <- log_mean - 2 * log_sd 
-log_upper_threshold <- log_mean + 2 * log_sd 
-lower_threshold <- 10^log_lower_threshold 
-upper_threshold <- 10^log_upper_threshold 
+log_lower_threshold <- log_mean - 2 * log_sd # -0.376
+log_upper_threshold <- log_mean + 2 * log_sd # 0.376
+lower_threshold <- 10^log_lower_threshold # 0.421
+upper_threshold <- 10^log_upper_threshold # 2.38
 
 # plot donor-receiver ratios for all nodes in 10,000 random networks (log10 transformed)
 role_shading <- data.frame(xmin = c(-Inf, log_lower_threshold, log_upper_threshold), # create shaded areas for each role
@@ -339,24 +340,37 @@ super_spp_roles <- define_spp_roles(super_spp_edge_count, lower_threshold, upper
   select(-c(Trial, Cohort))
 
 # quantify percentage of species in super HGT network with each network role
-nrow(super_spp_roles %>% filter(Type == "Source"))/nrow(super_spp_roles)*100
-nrow(super_spp_roles %>% filter(Type == "Conduit"))/nrow(super_spp_roles)*100 
-nrow(super_spp_roles %>% filter(Type == "Sink"))/nrow(super_spp_roles)*100 
+nrow(super_spp_roles %>% filter(Type == "Source"))/nrow(super_spp_roles)*100 # 34.9% = sources (104/298)
+nrow(super_spp_roles %>% filter(Type == "Conduit"))/nrow(super_spp_roles)*100 # 53.0% = conduits (158/298)
+nrow(super_spp_roles %>% filter(Type == "Sink"))/nrow(super_spp_roles)*100 # 12.1% = sinks (36/298)
 
 
 # investigate species behaviour in cohort-specific HGT networks -----------
 
 # subset HGT events for those that are directed and between species only
+dir_spp_hgts_uc <- spp_dir_hgts_uc %>% filter(Directional == "Yes")
 dir_spp_hgts_gb <- spp_dir_hgts_gb %>% filter(Directional == "Yes")
 
 # get HGT events for each sample, in each cohort
-hgts_per_sample_gb_donors <- get_hgts_per_sample(dir_spp_hgts_gb, donor_samples_gb) # switch out specific metadata
+hgts_per_sample_uc_donors <- get_hgts_per_sample(dir_spp_hgts_uc, donor_samples_uc) # switch out specific metadata
+hgts_per_sample_uc_pre_fmt <- get_hgts_per_sample(dir_spp_hgts_uc, pre_fmt_samples_uc)
+hgts_per_sample_uc_post_fmt <- get_hgts_per_sample(dir_spp_hgts_uc, post_fmt_samples_uc)
+hgts_per_sample_uc_pre_placebo <- get_hgts_per_sample(dir_spp_hgts_uc, pre_placebo_samples_uc)
+hgts_per_sample_uc_post_placebo <- get_hgts_per_sample(dir_spp_hgts_uc, post_placebo_samples_uc)
+
+hgts_per_sample_gb_donors <- get_hgts_per_sample(dir_spp_hgts_gb, donor_samples_gb)
 hgts_per_sample_gb_pre_fmt <- get_hgts_per_sample(dir_spp_hgts_gb, pre_fmt_samples_gb)
 hgts_per_sample_gb_post_fmt <- get_hgts_per_sample(dir_spp_hgts_gb, post_fmt_samples_gb)
 hgts_per_sample_gb_pre_placebo <- get_hgts_per_sample(dir_spp_hgts_gb, pre_placebo_samples_gb)
 hgts_per_sample_gb_post_placebo <- get_hgts_per_sample(dir_spp_hgts_gb, post_placebo_samples_gb)
 
 # make individual HGT networks for each trial cohort
+uc_donor_hgt_network <- make_hgt_network_plot(hgts_per_sample_uc_donors, all_hgt_taxa_distinct, "FOCUS donors")
+uc_pre_fmt_hgt_network <- make_hgt_network_plot(hgts_per_sample_uc_pre_fmt, all_hgt_taxa_distinct, "FOCUS pre-FMT")
+uc_post_fmt_hgt_network <- make_hgt_network_plot(hgts_per_sample_uc_post_fmt, all_hgt_taxa_distinct, "FOCUS post-FMT")
+uc_pre_placebo_hgt_network <- make_hgt_network_plot(hgts_per_sample_uc_pre_placebo, all_hgt_taxa_distinct, "FOCUS pre-placebo")
+uc_post_placebo_hgt_network <- make_hgt_network_plot(hgts_per_sample_uc_post_placebo, all_hgt_taxa_distinct, "FOCUS post-placebo")
+
 gb_donor_hgt_network <- make_hgt_network_plot(hgts_per_sample_gb_donors, all_hgt_taxa_distinct, "Gut Bugs donors")
 gb_pre_fmt_hgt_network <- make_hgt_network_plot(hgts_per_sample_gb_pre_fmt, all_hgt_taxa_distinct, "Gut Bugs pre-FMT")
 gb_post_fmt_hgt_network <- make_hgt_network_plot(hgts_per_sample_gb_post_fmt, all_hgt_taxa_distinct, "Gut Bugs post-FMT")
@@ -364,10 +378,17 @@ gb_pre_placebo_hgt_network <- make_hgt_network_plot(hgts_per_sample_gb_pre_place
 gb_post_placebo_hgt_network <- make_hgt_network_plot(hgts_per_sample_gb_post_placebo, all_hgt_taxa_distinct, "Gut Bugs post-placebo")
 
 # join plots together
-hgt_networks <- wrap_plots(gb_donor_hgt_network, gb_pre_fmt_hgt_network, gb_post_fmt_hgt_network, gb_pre_placebo_hgt_network, gb_post_placebo_hgt_network,
-                           ncol = 5, nrow = 1)
+hgt_networks <- wrap_plots(uc_donor_hgt_network, uc_pre_fmt_hgt_network, uc_post_fmt_hgt_network, uc_pre_placebo_hgt_network, uc_post_placebo_hgt_network,
+                           gb_donor_hgt_network, gb_pre_fmt_hgt_network, gb_post_fmt_hgt_network, gb_pre_placebo_hgt_network, gb_post_placebo_hgt_network,
+                           ncol = 5, nrow = 2)
 
 # count number of in and out edges for each species across all samples in cohort
+spp_edge_count_uc_donors <- get_spp_edge_count(hgts_per_sample_uc_donors)
+spp_edge_count_uc_pre_fmt <- get_spp_edge_count(hgts_per_sample_uc_pre_fmt)
+spp_edge_count_uc_post_fmt <- get_spp_edge_count(hgts_per_sample_uc_post_fmt)
+spp_edge_count_uc_pre_placebo <- get_spp_edge_count(hgts_per_sample_uc_pre_placebo)
+spp_edge_count_uc_post_placebo <- get_spp_edge_count(hgts_per_sample_uc_post_placebo)
+
 spp_edge_count_gb_donors <- get_spp_edge_count(hgts_per_sample_gb_donors)
 spp_edge_count_gb_pre_fmt <- get_spp_edge_count(hgts_per_sample_gb_pre_fmt)
 spp_edge_count_gb_post_fmt <- get_spp_edge_count(hgts_per_sample_gb_post_fmt)
@@ -375,6 +396,12 @@ spp_edge_count_gb_pre_placebo <- get_spp_edge_count(hgts_per_sample_gb_pre_place
 spp_edge_count_gb_post_placebo <- get_spp_edge_count(hgts_per_sample_gb_post_placebo)
 
 # define species network roles across all samples in cohort
+spp_roles_uc_donors <- define_spp_roles(spp_edge_count_uc_donors, lower_threshold, upper_threshold, trial_name = "FOCUS", cohort_name = "Donor")
+spp_roles_uc_pre_fmt <- define_spp_roles(spp_edge_count_uc_pre_fmt, lower_threshold, upper_threshold, trial_name = "FOCUS", cohort_name = "Pre-FMT")
+spp_roles_uc_post_fmt <- define_spp_roles(spp_edge_count_uc_post_fmt, lower_threshold, upper_threshold, trial_name = "FOCUS", cohort_name = "Post-FMT")
+spp_roles_uc_pre_placebo <- define_spp_roles(spp_edge_count_uc_pre_placebo, lower_threshold, upper_threshold, trial_name = "FOCUS", cohort_name = "Pre-placebo")
+spp_roles_uc_post_placebo <- define_spp_roles(spp_edge_count_uc_post_placebo, lower_threshold, upper_threshold, trial_name = "FOCUS", cohort_name = "Post-placebo")
+
 spp_roles_gb_donors <- define_spp_roles(spp_edge_count_gb_donors, lower_threshold, upper_threshold, trial_name = "Gut Bugs", cohort_name = "Donor")
 spp_roles_gb_pre_fmt <- define_spp_roles(spp_edge_count_gb_pre_fmt, lower_threshold, upper_threshold, trial_name = "Gut Bugs", cohort_name = "Pre-FMT")
 spp_roles_gb_post_fmt <- define_spp_roles(spp_edge_count_gb_post_fmt, lower_threshold, upper_threshold, trial_name = "Gut Bugs", cohort_name = "Post-FMT")
@@ -382,7 +409,8 @@ spp_roles_gb_pre_placebo <- define_spp_roles(spp_edge_count_gb_pre_placebo, lowe
 spp_roles_gb_post_placebo <- define_spp_roles(spp_edge_count_gb_post_placebo, lower_threshold, upper_threshold, trial_name = "Gut Bugs", cohort_name = "Post-placebo")
 
 # join data for all trial cohorts
-joined_spp_roles <- bind_rows(spp_roles_gb_donors, spp_roles_gb_pre_fmt, spp_roles_gb_post_fmt, spp_roles_gb_pre_placebo, spp_roles_gb_post_placebo) %>%
+joined_spp_roles <- bind_rows(spp_roles_uc_donors, spp_roles_uc_pre_fmt, spp_roles_uc_post_fmt, spp_roles_uc_pre_placebo, spp_roles_uc_post_placebo,
+                              spp_roles_gb_donors, spp_roles_gb_pre_fmt, spp_roles_gb_post_fmt, spp_roles_gb_pre_placebo, spp_roles_gb_post_placebo) %>%
   mutate(Trial_cohort = paste0(Trial, " ", Cohort)) # concatenate trial and cohort names
 
 # calculate the frequency of each species network role in each trial cohort
@@ -398,7 +426,7 @@ spp_role_freq <- joined_spp_roles %>%
 
 # reorder factor orders for plotting (reversed due to coord_flip)
 spp_role_freq$Type <- factor(spp_role_freq$Type, levels = c("Source", "Sink", "Conduit"))
-spp_role_freq$Trial <- factor(spp_role_freq$Trial, levels = c("All", "Gut Bugs"))
+spp_role_freq$Trial <- factor(spp_role_freq$Trial, levels = c("All", "FOCUS", "Gut Bugs"))
 spp_role_freq$Cohort <- factor(spp_role_freq$Cohort, levels = c("Post-placebo", "Pre-placebo", "Post-FMT", "Pre-FMT", "Donor", "Super transferome"))
 
 # plot the frequency of each species network role in each trial cohort
@@ -426,21 +454,24 @@ conduit_upset_data <- format_upset_data(joined_spp_roles, "Conduit")
 sink_upset_data <- format_upset_data(joined_spp_roles, "Sink")
 
 # plot overlap in sources between cohorts
-source_spp_overlap <- make_upset_plot(source_upset_data, "Gut Bugs Donor", "Gut Bugs Pre-FMT", "Gut Bugs Post-FMT", "Gut Bugs Pre-placebo", "Gut Bugs Post-placebo", 
-                        "#0072B2", "Source species")
+source_spp_overlap <- make_upset_plot(source_upset_data, "FOCUS Donor", "FOCUS Pre-FMT", "FOCUS Post-FMT", "FOCUS Pre-placebo", "FOCUS Post-placebo",
+                        "Gut Bugs Donor", "Gut Bugs Pre-FMT", "Gut Bugs Post-FMT", "Gut Bugs Pre-placebo", "Gut Bugs Post-placebo", 
+                        "#D55E00", "#0072B2", "Source species")
 
 # plot overlap in conduits between cohorts
-conduit_spp_overlap <- make_upset_plot(conduit_upset_data, "Gut Bugs Donor", "Gut Bugs Pre-FMT", "Gut Bugs Post-FMT", "Gut Bugs Pre-placebo", "Gut Bugs Post-placebo", 
-                                      "#0072B2", "Conduit species")
+conduit_spp_overlap <- make_upset_plot(conduit_upset_data, "FOCUS Donor", "FOCUS Pre-FMT", "FOCUS Post-FMT", "FOCUS Pre-placebo", "FOCUS Post-placebo",
+                                      "Gut Bugs Donor", "Gut Bugs Pre-FMT", "Gut Bugs Post-FMT", "Gut Bugs Pre-placebo", "Gut Bugs Post-placebo", 
+                                      "#D55E00", "#0072B2", "Conduit species")
 
 # plot overlap in sinks between cohorts
-sink_spp_overlap <- make_upset_plot(sink_upset_data, "Gut Bugs Donor", "Gut Bugs Pre-FMT", "Gut Bugs Post-FMT", "Gut Bugs Pre-placebo", "Gut Bugs Post-placebo", 
-                                       "#0072B2", "Sink species")
+sink_spp_overlap <- make_upset_plot(sink_upset_data, "FOCUS Donor", "FOCUS Pre-FMT", "FOCUS Post-FMT", "FOCUS Pre-placebo", "FOCUS Post-placebo",
+                                       "Gut Bugs Donor", "Gut Bugs Pre-FMT", "Gut Bugs Post-FMT", "Gut Bugs Pre-placebo", "Gut Bugs Post-placebo", 
+                                       "#D55E00", "#0072B2", "Sink species")
 
 # find conserved species network roles across all trial cohorts
-conserved_source_spp <- conserved_network_roles(source_upset_data) 
-conserved_conduit_spp <- conserved_network_roles(conduit_upset_data) 
-conserved_sink_spp <- conserved_network_roles(sink_upset_data) 
+conserved_source_spp <- conserved_network_roles(source_upset_data) # 0 species
+conserved_conduit_spp <- conserved_network_roles(conduit_upset_data) # 0 species
+conserved_sink_spp <- conserved_network_roles(sink_upset_data) # 3 species
 
 # find proportion of species with changed network roles across cohorts (not just missing from HGT in all cohort samples)
 n_spp_roles <- joined_spp_roles %>% 
@@ -481,7 +512,8 @@ n_spp_roles_plot <- n_spp_roles %>%
 
 #save(super_spp_roles, file = "super_spp_roles.RData")
 #save(log_lower_threshold, log_upper_threshold, lower_threshold, upper_threshold, file = "spp_role_thresholds.RData")
-#save(hgts_per_sample_gb_donors, hgts_per_sample_gb_pre_fmt, hgts_per_sample_gb_post_fmt, hgts_per_sample_gb_pre_placebo, hgts_per_sample_gb_post_placebo,
+#save(hgts_per_sample_uc_donors, hgts_per_sample_uc_pre_fmt, hgts_per_sample_uc_post_fmt, hgts_per_sample_uc_pre_placebo, hgts_per_sample_uc_post_placebo,
+#     hgts_per_sample_gb_donors, hgts_per_sample_gb_pre_fmt, hgts_per_sample_gb_post_fmt, hgts_per_sample_gb_pre_placebo, hgts_per_sample_gb_post_placebo,
 #     file = "dir_hgts_per_sample.RData")
 #save(joined_spp_roles, file = "joined_spp_roles.RData")
 #save(randomised_network_edges, file = "randomised_network_edges.RData")

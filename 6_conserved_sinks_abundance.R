@@ -15,6 +15,7 @@ library(dunn.test)
 load("sample_subsets.RData")
 
 # species-specific HGT events (formatted WAAFLE results)
+load("spp_dir_hgts_uc.RData")
 load("spp_dir_hgts_gb.RData")
 
 # species HGT role thresholds
@@ -106,6 +107,12 @@ dunn_test_sig_res <- function(dunn_test_res){
 # data formatting ---------------------------------------------------------
 
 # find the relative abundance of species in each sample
+spp_RA_uc_donor <- spp_sample_RA("metaphlan4_sgb_uc.Rdata", donor_samples_uc, "FOCUS")
+spp_RA_uc_pre_fmt <- spp_sample_RA("metaphlan4_sgb_uc.Rdata", pre_fmt_samples_uc, "FOCUS")
+spp_RA_uc_post_fmt <- spp_sample_RA("metaphlan4_sgb_uc.Rdata", post_fmt_samples_uc, "FOCUS")
+spp_RA_uc_pre_placebo <- spp_sample_RA("metaphlan4_sgb_uc.Rdata", pre_placebo_samples_uc, "FOCUS")
+spp_RA_uc_post_placebo <- spp_sample_RA("metaphlan4_sgb_uc.Rdata", post_placebo_samples_uc, "FOCUS")
+
 spp_RA_gb_donor <- spp_sample_RA("metaphlan4_sgb_gb.Rdata", donor_samples_gb, "Gut Bugs")
 spp_RA_gb_pre_fmt <- spp_sample_RA("metaphlan4_sgb_gb.Rdata", pre_fmt_samples_gb, "Gut Bugs")
 spp_RA_gb_post_fmt <- spp_sample_RA("metaphlan4_sgb_gb.Rdata", post_fmt_samples_gb, "Gut Bugs")
@@ -113,14 +120,16 @@ spp_RA_gb_pre_placebo <- spp_sample_RA("metaphlan4_sgb_gb.Rdata", pre_placebo_sa
 spp_RA_gb_post_placebo <- spp_sample_RA("metaphlan4_sgb_gb.Rdata", post_placebo_samples_gb, "Gut Bugs")
 
 # join data for all cohorts
-joined_spp_RA <- bind_rows(spp_RA_gb_donor, spp_RA_gb_pre_fmt, spp_RA_gb_post_fmt, spp_RA_gb_pre_placebo, spp_RA_gb_post_placebo) %>%
+joined_spp_RA <- bind_rows(spp_RA_uc_donor, spp_RA_uc_pre_fmt, spp_RA_uc_post_fmt, spp_RA_uc_pre_placebo, spp_RA_uc_post_placebo, 
+                           spp_RA_gb_donor, spp_RA_gb_pre_fmt, spp_RA_gb_post_fmt, spp_RA_gb_pre_placebo, spp_RA_gb_post_placebo) %>%
   rename(Cohort = Timepoint_general)
 
 # subset HGT events for those that are directed and between species only
+dir_spp_hgts_uc <- spp_dir_hgts_uc %>% filter(Directional == "Yes")
 dir_spp_hgts_gb <- spp_dir_hgts_gb %>% filter(Directional == "Yes")
 
 # join directed species-specific HGTs
-joined_dir_spp_hgts <- dir_spp_hgts_gb
+joined_dir_spp_hgts <- bind_rows(dir_spp_hgts_uc, dir_spp_hgts_gb)
 
 
 # investigate species incoming HGTs and RA --------------------------------
@@ -170,24 +179,24 @@ inHGT_RA_all <- wrap_plots(inHGT_RA_plot_ca, inHGT_RA_plot_fp_er, nrow = 1) + pl
 
 ## stats
 # test RA data for normality by incoming HGT count category
-fp_inHGT_RA %>% filter(received_HGT == 0) %>% pull(RA) %>% shapiro.test()
-er_inHGT_RA %>% filter(received_HGT == 0) %>% pull(RA) %>% shapiro.test()
-ca_inHGT_RA %>% filter(received_HGT == 0) %>% pull(RA) %>% shapiro.test()
+fp_inHGT_RA %>% filter(received_HGT == 0) %>% pull(RA) %>% shapiro.test() # p = 1.362e-14
+er_inHGT_RA %>% filter(received_HGT == 0) %>% pull(RA) %>% shapiro.test() # p < 2.2e-16
+ca_inHGT_RA %>% filter(received_HGT == 0) %>% pull(RA) %>% shapiro.test() # p < 2.2e-16
 
 # RA distributions are not normal - compare distributions of RA across all incoming HGT count categories using Kruskal-Wallis test
-kruskal.test(RA ~ received_HGT, data = fp_inHGT_RA)
-kruskal.test(RA ~ received_HGT, data = er_inHGT_RA)
-kruskal.test(RA ~ received_HGT, data = ca_inHGT_RA)
+kruskal.test(RA ~ received_HGT, data = fp_inHGT_RA) # p = 4.137e-05 ***
+kruskal.test(RA ~ received_HGT, data = er_inHGT_RA) # p = 2.648e-08 ***
+kruskal.test(RA ~ received_HGT, data = ca_inHGT_RA) # p < 2.2e-16 ***
 
 # post-hoc testing to see which incoming HGT count categories differ
 fp_dunn_test <- dunn.test(fp_inHGT_RA$RA, fp_inHGT_RA$received_HGT, method = "bonferroni")
-dunn_test_sig_res(fp_dunn_test)
+dunn_test_sig_res(fp_dunn_test) # F. prausnitzii = 0-1 p = 6.293690e-03 ***, 0-2 p = 5.504656e-05 ***
 
 er_dunn_test <- dunn.test(er_inHGT_RA$RA, er_inHGT_RA$received_HGT, method = "bonferroni")
-dunn_test_sig_res(er_dunn_test)
+dunn_test_sig_res(er_dunn_test) # E. rectale = 0-1 p = 5.389710e-05 ***, 0-2 p = 1.927173e-06 ***, 0-3 p = 8.984565e-03 ***
 
 ca_dunn_test <- dunn.test(ca_inHGT_RA$RA, ca_inHGT_RA$received_HGT, method = "bonferroni")
-dunn_test_sig_res(ca_dunn_test)
+dunn_test_sig_res(ca_dunn_test) # C. aerofaciens = 0-1 p = 1.366697e-19 ***, 0-2 p = 2.106569e-07 ***
 
 
 # investigate species DR ratio and RA -------------------------------------
@@ -248,16 +257,16 @@ DRratio_RA_all <- wrap_plots(DRratio_RA_plot_ca, DRratio_RA_plot_fp_er, nrow = 1
 ## stats
 # test RA data for normality by incoming HGT count category
 fp_er_DRratio_RA_roles %>% filter(Species == "s__Faecalibacterium_prausnitzii") %>% 
-  filter(dr_category == "Conduit") %>% pull(RA) %>% shapiro.test()
+  filter(dr_category == "Conduit") %>% pull(RA) %>% shapiro.test() # p < 2.2e-16
 fp_er_DRratio_RA_roles %>% filter(Species == "s__Eubacterium_rectale") %>% 
-  filter(dr_category == "Conduit") %>% pull(RA) %>% shapiro.test()
-ca_DRratio_RA_roles %>% filter(dr_category == "Conduit") %>% pull(RA) %>% shapiro.test()
+  filter(dr_category == "Conduit") %>% pull(RA) %>% shapiro.test() # p < 2.2e-16
+ca_DRratio_RA_roles %>% filter(dr_category == "Conduit") %>% pull(RA) %>% shapiro.test() # p < 2.2e-16
 
 # RA distributions are not normal - compare distributions of RA across two DR ratio categories using Wilcoxon test
 wilcox.test(RA ~ dr_category, data = fp_er_DRratio_RA_roles %>% 
-              filter(Species == "s__Faecalibacterium_prausnitzii"))
+              filter(Species == "s__Faecalibacterium_prausnitzii")) # p = 0.0002924 ***
 
 wilcox.test(RA ~ dr_category, data = fp_er_DRratio_RA_roles %>% 
-              filter(Species == "s__Eubacterium_rectale"))
+              filter(Species == "s__Eubacterium_rectale")) # p = 3.658e-05 ***
 
-wilcox.test(RA ~ dr_category, data = ca_DRratio_RA_roles)
+wilcox.test(RA ~ dr_category, data = ca_DRratio_RA_roles) # p = 8.534e-06 ***

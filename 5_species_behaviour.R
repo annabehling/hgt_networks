@@ -16,9 +16,11 @@ library(dunn.test)
 ## load data
 
 # species-specific HGT events (formatted WAAFLE results)
+load("spp_dir_hgts_uc.RData")
 load("spp_dir_hgts_gb.RData")
 
 # full metadata for each trial, note: sample IDs must match metaphlan sample IDs (need to remove underscores from metaphlan samples IDs during processing)
+load("formatted_metadata_uc.RData")
 load("formatted_metadata_gb.RData")
 
 # species network roles
@@ -26,7 +28,7 @@ load("joined_spp_roles.RData")
 
 ## load palettes
 
-trial_palette <- c("Gut Bugs" = "#0072B2")
+trial_palette <- c("FOCUS" = "#D55E00", "Gut Bugs" = "#0072B2")
 role_palette <- c("Source" = "#44BB99",  "Conduit" = "#99DDFF", "Sink" = "#EE8866")
 
 ## load functions
@@ -130,27 +132,35 @@ format_trial_metaphlan <- function(metaphlan_RData, metadata, trial_name){
 # find which metaphlan4 database has the most HGT species -----------------
 
 # get distinct species in metaphlan4 GTDB or SGB output
-distinct_m4_gtdb_spp_gb <- get_distinct_m4_spp("metaphlan4_gtdb_gb.Rdata") # m4 gtdb 
-distinct_m4_sgb_spp_gb <- get_distinct_m4_spp("metaphlan4_sgb_gb.Rdata") # m4 sgb 
+distinct_m4_gtdb_spp_uc <- get_distinct_m4_spp("metaphlan4_gtdb_uc.Rdata") # m4 gtdb
+distinct_m4_gtdb_spp_gb <- get_distinct_m4_spp("metaphlan4_gtdb_gb.Rdata") 
+distinct_m4_sgb_spp_uc <- get_distinct_m4_spp("metaphlan4_sgb_uc.Rdata") # m4 sgb
+distinct_m4_sgb_spp_gb <- get_distinct_m4_spp("metaphlan4_sgb_gb.Rdata") 
 
 # subset HGT events for those that are directed and between species only
+dir_spp_hgts_uc <- spp_dir_hgts_uc %>% filter(Directional == "Yes")
 dir_spp_hgts_gb <- spp_dir_hgts_gb %>% filter(Directional == "Yes")
 
 # get distinct species in WAAFLE directional HGT between species
+distinct_dir_hgt_spp_uc <- get_all_dir_hgt_spp(dir_spp_hgts_uc)
 distinct_dir_hgt_spp_gb <- get_all_dir_hgt_spp(dir_spp_hgts_gb)
 
 # find the proportion of exact matching species from WAAFLE output in metaphlan4 GTDB and SGB outputs
 # note: ok to use full metaphlan profiles (not sample subsets) as only interested in proportion of WAAFLE representation here
+waafle_m4_spp_matches_uc <- waafle_spp_in_m4(distinct_dir_hgt_spp_uc, gtdb_spp = distinct_m4_gtdb_spp_uc, sgb_spp = distinct_m4_sgb_spp_uc)
 waafle_m4_spp_matches_gb <- waafle_spp_in_m4(distinct_dir_hgt_spp_gb, gtdb_spp = distinct_m4_gtdb_spp_gb, sgb_spp = distinct_m4_sgb_spp_gb)
 
 # quantify the proportion of exact matching species from WAAFLE output in metaphlan4 GTDB and SGB outputs
+waafle_m4_spp_ppn_uc <- waafle_m4_spp_matches_uc %>% summarise(across(-Species, ~ mean(. == "Yes")))
 waafle_m4_spp_ppn_gb <- waafle_m4_spp_matches_gb %>% summarise(across(-Species, ~ mean(. == "Yes")))
 
 # format the proportion of exact matching species from WAAFLE output in metaphlan4 GTDB and SGB outputs for plotting
+waafle_m4_spp_ppn_uc_formatted <- format_waafle_m4_spp_ppn_data(waafle_m4_spp_ppn_uc, "FOCUS")
 waafle_m4_spp_ppn_gb_formatted <- format_waafle_m4_spp_ppn_data(waafle_m4_spp_ppn_gb, "Gut Bugs")
 
 # plot the proportion of exact matching species from WAAFLE output in metaphlan4 GTDB and SGB outputs
-waafle_m4_spp_ppn_plot <- waafle_m4_spp_ppn_gb_formatted %>% # bind data for all trials
+waafle_m4_spp_ppn_plot <- waafle_m4_spp_ppn_uc_formatted %>% 
+  bind_rows(waafle_m4_spp_ppn_gb_formatted) %>% # bind data for all trials
   ggplot(aes(x = m4_database, y = ppn_waafle_matches)) +
   geom_bar(stat = "identity") +
   facet_grid(~trial) +
@@ -164,6 +174,10 @@ waafle_m4_spp_ppn_plot <- waafle_m4_spp_ppn_gb_formatted %>% # bind data for all
 # note: WAAFLE HGT species are better represented in SGB database results for both trials, use metaphlan4 SGB database results from here on
 
 # quantify the average number of species prevalent in each sample, across the sample subsets
+uc_n_species <- quantify_metaphlan_spp("metaphlan4_sgb_uc.Rdata", metadata_uc) # FOCUS
+mean(uc_n_species) # 80.6
+sd(uc_n_species) # 41.4
+
 gb_n_species <- quantify_metaphlan_spp("metaphlan4_sgb_gb.Rdata", metadata_gb) # Gut Bugs
 mean(gb_n_species) # 199
 sd(gb_n_species) # 62.6
@@ -172,14 +186,15 @@ sd(gb_n_species) # 62.6
 # generate mean RA, prevalence and total HGT interactions data for each species cohort network role --------
 
 # load metaphlan species data and format for each trial
+metaphlan_spp_uc <- format_trial_metaphlan("metaphlan4_sgb_uc.Rdata", metadata_uc, "FOCUS")
 metaphlan_spp_gb <- format_trial_metaphlan("metaphlan4_sgb_gb.Rdata", metadata_gb, "Gut Bugs")
 
 # bind metaphlan species data for both trials into single dataframe
-metaphlan_spp_joined <- metaphlan_spp_gb %>% # bind for all trials
+metaphlan_spp_joined <- bind_rows(metaphlan_spp_uc, metaphlan_spp_gb) %>% # bind data
   mutate(Timepoint_general = case_when(Timepoint == "BL" & Group == "FMT" ~ "Pre-FMT", # make generalised timepoints for comparisons across trials
-                                       Timepoint == "wk6" & Group == "FMT" ~ "Post-FMT",
+                                       (Timepoint == "wk8" | Timepoint == "wk6") & Group == "FMT" ~ "Post-FMT",
                                        Timepoint == "BL" & Group == "Placebo" ~ "Pre-placebo",
-                                       Timepoint == "wk6" & Group == "Placebo" ~ "Post-placebo",
+                                       (Timepoint == "wk8" | Timepoint == "wk6") & Group == "Placebo" ~ "Post-placebo",
                                        Timepoint == "Donor" ~ "Donor")) %>%
   mutate(Trial_cohort = paste0(Trial, " ", Timepoint_general)) %>% # specify trial cohort based on trial name and generalised timepoint
   select(-Trial)
@@ -306,10 +321,10 @@ spp_roles_HGT_int_all <- spp_roles_meanRA_prev_HGTint %>%
 # assess statistical significance of association between HGT interactions and network role
 
 # normality testing
-spp_roles_meanRA_prev_HGTint %>% filter(Type == "Source") %>% pull(Total_edges) %>% shapiro.test()
+spp_roles_meanRA_prev_HGTint %>% filter(Type == "Source") %>% pull(Total_edges) %>% shapiro.test() # p = 1.385e-09
 
 # statistically compare HGT interactions of species across all trial cohorts by role classification, using non parametric tests
-kruskal.test(Total_edges ~ Type, data = spp_roles_meanRA_prev_HGTint)
+kruskal.test(Total_edges ~ Type, data = spp_roles_meanRA_prev_HGTint) # p = 0.0006396 ***
 
 # post-hoc testing to see which roles differ
 dunn_test_int <- dunn.test(spp_roles_meanRA_prev_HGTint$Total_edges, spp_roles_meanRA_prev_HGTint$Type, method = "bonferroni")
@@ -319,6 +334,9 @@ role_pvals_int <- dunn_test_int$P.adj
 sig_role_comparisons_int <- role_comparisons_int[role_pvals_int < 0.05]
 sig_role_pvals_int <- role_pvals_int[role_pvals_int < 0.05]
 data.frame(Comparison = sig_role_comparisons_int, P.adj = sig_role_pvals_int)
+# Comparison        P.adj
+# Conduit - Sink 0.000521459 ***
+# Conduit - Source 0.034266151 *
 
 
 # investigate association between role and mean RA/prev -------------------
@@ -369,10 +387,10 @@ spp_roles_meanRA_prev_all <- spp_roles_mean_RA_all / spp_roles_prev_all
 # assess statistical significance of association between species mean RA and network role
 
 # normality testing
-spp_roles_meanRA_prev_HGTint %>% filter(Type == "Source") %>% pull(mean_RA) %>% shapiro.test()
+spp_roles_meanRA_prev_HGTint %>% filter(Type == "Source") %>% pull(mean_RA) %>% shapiro.test() # p = 1.004e-08
 
 # statistically compare mean RA of species across all trial cohorts by role classification, using non parametric tests
-kruskal.test(mean_RA ~ Type, data = spp_roles_meanRA_prev_HGTint)
+kruskal.test(mean_RA ~ Type, data = spp_roles_meanRA_prev_HGTint) # p = 5.769e-06 ***
 
 # post-hoc testing to see which roles differ
 dunn_test_RA <- dunn.test(spp_roles_meanRA_prev_HGTint$mean_RA, spp_roles_meanRA_prev_HGTint$Type, method = "bonferroni")
@@ -382,14 +400,17 @@ role_pvals_RA <- dunn_test_RA$P.adj
 sig_role_comparisons_RA <- role_comparisons_RA[role_pvals_RA < 0.05]
 sig_role_pvals_RA <- role_pvals_RA[role_pvals_RA < 0.05]
 data.frame(Comparison = sig_role_comparisons_RA, P.adj = sig_role_pvals_RA)
+# Comparison        P.adj
+# Conduit - Sink 8.661358e-06 ***
+# Sink - Source 2.776387e-05 ***
 
 # assess statistical significance of association between species prevalence and network role
 
 # normality testing
-spp_roles_meanRA_prev_HGTint %>% filter(Type == "Source") %>% pull(prev) %>% shapiro.test()
+spp_roles_meanRA_prev_HGTint %>% filter(Type == "Source") %>% pull(prev) %>% shapiro.test() # p = 0.00145
 
 # statistically compare prevalence of species across all trial cohorts by role classification, using non parametric tests
-kruskal.test(prev ~ Type, data = spp_roles_meanRA_prev_HGTint)
+kruskal.test(prev ~ Type, data = spp_roles_meanRA_prev_HGTint) # p = 7.44e-06 ***
 
 # post-hoc testing to see which roles differ
 dunn_test_prev <- dunn.test(spp_roles_meanRA_prev_HGTint$prev, spp_roles_meanRA_prev_HGTint$Type, method = "bonferroni")
@@ -399,3 +420,6 @@ role_pvals_prev <- dunn_test_prev$P.adj
 sig_role_comparisons_prev <- role_comparisons_prev[role_pvals_prev < 0.05]
 sig_role_pvals_prev <- role_pvals_prev[role_pvals_prev < 0.05]
 data.frame(Comparison = sig_role_comparisons_prev, P.adj = sig_role_pvals_prev)
+# Comparison        P.adj
+# Conduit - Sink 3.381873e-06 ***
+# Sink - Source 2.197871e-04 ***

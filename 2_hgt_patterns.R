@@ -34,28 +34,32 @@ subset_spp_dir_hgts <- function(dir_hgts, trial_name){
 ## load data
 
 # metadata
+load("formatted_metadata_uc.RData")
 load("formatted_metadata_gb.RData")
 
 # waafle
+load("joined_hgt_df_uc.RData")
 load("joined_hgt_df_gb.RData")
 
 ## load palettes
 
-trial_palette <- c("Gut Bugs" = "#0072B2")
+trial_palette <- c("FOCUS" = "#D55E00", "Gut Bugs" = "#0072B2")
 
 ## running
 
 # investigate the proportion of HGT events with direction -----------------
 
 # define directional HGT events
+dir_hgts_uc <- define_dir_hgts(joined_hgt_df_uc, metadata_uc, trial_name = "FOCUS")
 dir_hgts_gb <- define_dir_hgts(joined_hgt_df_gb, metadata_gb, trial_name = "Gut Bugs")
 
 # subset directional HGT events between species
+spp_dir_hgts_uc <- subset_spp_dir_hgts(dir_hgts_uc, trial_name = "FOCUS")
 spp_dir_hgts_gb <- subset_spp_dir_hgts(dir_hgts_gb, trial_name = "Gut Bugs")
 
 # plot the proportion of all HGT events, and those between species, with direction
-ppn_hgt_directional_plot <- dir_hgts_gb %>% 
-  bind_rows(spp_dir_hgts_gb) %>% # bind data for all trials
+ppn_hgt_directional_plot <- dir_hgts_uc %>% 
+  bind_rows(dir_hgts_gb, spp_dir_hgts_uc, spp_dir_hgts_gb) %>% # bind data for all trials
   select(Type, Trial, Directional) %>%
   group_by(Type, Trial, Directional) %>%
   summarise(n = n()) %>%
@@ -72,6 +76,12 @@ ppn_hgt_directional_plot <- dir_hgts_gb %>%
         legend.background = element_rect(color="black", size=0.4))
 
 # quantify HGT events
+nrow(dir_hgts_uc) # FOCUS all HGTs: 7381
+nrow(dir_hgts_uc %>% filter(Directional == "Yes"))/nrow(dir_hgts_uc)*100 # 10.0% directed
+
+nrow(spp_dir_hgts_uc) # FOCUS species-specific HGTs: 5176
+nrow(spp_dir_hgts_uc %>% filter(Directional == "Yes"))/nrow(spp_dir_hgts_uc)*100 # 8.98% directed
+
 nrow(dir_hgts_gb) # Gut Bugs all HGTs: 32374
 nrow(dir_hgts_gb %>% filter(Directional == "Yes"))/nrow(dir_hgts_gb)*100 # 11.3% directed
 
@@ -79,6 +89,24 @@ nrow(spp_dir_hgts_gb) # Gut Bugs species-specific: 22743
 nrow(spp_dir_hgts_gb %>% filter(Directional == "Yes"))/nrow(spp_dir_hgts_gb)*100 # 10.7% directed
 
 # quantify the average number of total HGT events in each sample, across the sample subsets
+# FOCUS
+uc_n_hgt <- dir_hgts_uc %>% 
+  select(Sample_ID) %>% 
+  group_by(Sample_ID) %>% 
+  mutate(n_hgts = n()) %>% 
+  distinct() %>% 
+  ungroup() %>%
+  right_join(metadata_uc, by = "Sample_ID") %>% # join with metadata
+  mutate(n_hgts = if_else(is.na(n_hgts), 0, n_hgts))
+mean(uc_n_hgt$n_hgts) # 56.3
+sd(uc_n_hgt$n_hgts) # 33.4
+
+# samples without HGT events
+uc_no_hgt <- uc_n_hgt %>%
+  filter(n_hgts == 0) %>%
+  mutate(Trial = "FOCUS")
+#write.xlsx(uc_no_hgt, "uc_no_hgt.xlsx") # table format for supplementary information 
+
 # Gut Bugs
 gb_n_hgt <- dir_hgts_gb %>% 
   select(Sample_ID) %>% 
@@ -94,8 +122,9 @@ sd(gb_n_hgt$n_hgts) # 38.4
 
 # investigate the proportion of intra-taxon HGT events --------------------
 
-# join all HGT events from all trials (sample subset)
-all_hgt_events <- dir_hgts_gb
+# join all HGT events from both trials (sample subset)
+all_hgt_events <- dir_hgts_uc %>%
+  bind_rows(dir_hgts_gb)
 
 # bind rows of taxonomy a and taxonomy b information to capture all taxa involved in HGT (sample subset)
 hgt_taxa_a <- all_hgt_events %>%
@@ -152,7 +181,8 @@ all_hgt_taxa_distinct <- hgt_taxa_a %>%
   select(-Taxonomy) # no longer need taxonomy column
 
 # find the proportion of species-specific HGT events occurring within each taxonomic level
-prop_within_taxa_hgts <- spp_dir_hgts_gb %>% # bind data for all trials
+prop_within_taxa_hgts <- spp_dir_hgts_uc %>%
+  bind_rows(spp_dir_hgts_gb) %>% # bind data for all trials
   filter(Directional == "Yes") %>% # filter for directional HGT events
   mutate(Donor_species = str_remove(CLADE_B, "s__"), # remove prefix from species names
          Recipient_species = str_remove(CLADE_A, "s__")) %>%
@@ -228,14 +258,16 @@ prop_within_taxa_hgts_plot <- prop_within_taxa_hgts %>%
         legend.background = element_rect(color="black", size=0.4))
 
 # get donor species in species-specific HGT events
-dir_hgt_donor_spp <- spp_dir_hgts_gb %>% # bind data for all trials
+dir_hgt_donor_spp <- spp_dir_hgts_uc %>%
+  bind_rows(spp_dir_hgts_gb) %>% # bind data for all trials
   filter(Directional == "Yes") %>% # filter for directional HGT events
   mutate(Donor_species = str_remove(CLADE_B, "s__"), # remove prefix from species names
          Donor_species = str_replace_all(Donor_species, "_", " ")) %>% # remove underscores from species names
   select(Species = Donor_species)
 
 # get recipient species in species-specific HGT events
-dir_hgt_recipient_spp <- spp_dir_hgts_gb %>% # bind data for all trials
+dir_hgt_recipient_spp <- spp_dir_hgts_uc %>%
+  bind_rows(spp_dir_hgts_gb) %>% # bind data for all trials
   filter(Directional == "Yes") %>% # filter for directional HGT events
   mutate(Recipient_species = str_remove(CLADE_A, "s__"), # remove prefix from species names
          Recipient_species = str_replace_all(Recipient_species, "_", " ")) %>% # remove underscores from species names
@@ -288,5 +320,6 @@ prop_within_taxa_hgts_legend <- prop_within_taxa_hgts %>%
 
 # save data files ---------------------------------------------------------
 
+#save(spp_dir_hgts_uc, file = "spp_dir_hgts_uc.RData")
 #save(spp_dir_hgts_gb, file = "spp_dir_hgts_gb.RData")
 #write.table(all_hgt_taxa_distinct, "hgt_taxa_lookup.txt", sep = "\t", quote = FALSE)

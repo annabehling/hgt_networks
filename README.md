@@ -20,7 +20,7 @@ Metagenomic data: https://doi.org/10.1053/j.gastro.2018.12.001
 
 ## HGT network analysis
 
-This repository contains the following R scripts used to analyse metagenomic data from the Gut Bugs Trial and FOCUS Trial for HGT network analysis.
+This repository contains the following R scripts used to analyse metagenomic data from the Gut Bugs Trial and FOCUS Trial in a HGT network analysis.
 
 - 0_format_metaphlan_output.R : format [MetaPhlAn](https://github.com/biobakery/MetaPhlAn) microbiome profile output
 - 0_format_waafle_output.R : format [WAAFLE](https://github.com/biobakery/waafle) HGT output
